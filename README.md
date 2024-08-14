@@ -16,7 +16,7 @@
 > ```
 > docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR
 > ```
-
+ 
 
 ## 主要变更
 此分叉版本的主要变更如下：
