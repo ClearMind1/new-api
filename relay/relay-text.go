@@ -360,12 +360,13 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, modelN
 	other := service.GenerateTextOtherInfo(ctx, relayInfo, modelRatio, groupRatio, completionRatio, modelPrice)
 	content, _ := buildQuestion(ctx)
 	model.RecordConsumeLog(ctx, relayInfo.UserId, relayInfo.ChannelId, promptTokens, completionTokens, logModel,
-		tokenName, quota, logContent, relayInfo.TokenId, userQuota, int(useTimeSeconds), relayInfo.IsStream, other,content)
+		tokenName, quota, logContent, relayInfo.TokenId, userQuota, int(useTimeSeconds), relayInfo.IsStream, other, content)
 
 	//if quota != 0 {
 	//
 	//}
 }
+
 // 解析发送的文本信息
 func buildQuestion(c *gin.Context) (string, error) {
 	// 读取并解析请求体中的 JSON 数据
@@ -403,4 +404,3 @@ func buildQuestion(c *gin.Context) (string, error) {
 		return "", errors.New("content not found in max element")
 	}
 }
-
