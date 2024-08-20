@@ -44,6 +44,11 @@ func SetRelayRouter(router *gin.Engine) {
 		relayV1Router.POST("/moderations", controller.Relay)
 		relayV1Router.POST("/rerank", controller.Relay)
 	}
+	relayVTestRouter := router.Group("/vTest")
+	relayVTestRouter.Use(middleware.TokenAuth())
+	{
+		relayVTestRouter.POST("/chat/completions", controller.MyTestHandleRequest)
+	}
 
 	relayMjRouter := router.Group("/mj")
 	registerMjRouterGroup(relayMjRouter)
