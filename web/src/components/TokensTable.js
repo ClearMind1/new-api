@@ -225,14 +225,14 @@ const TokensTable = () => {
                     onOpenLink('next-mj', record.key);
                   },
                 },
-                {
-                  node: 'item',
-                  key: 'lobe',
-                  name: 'Lobe Chat',
-                  onClick: () => {
-                    onOpenLink('lobe', record.key);
-                  },
-                },
+                // {
+                //   node: 'item',
+                //   key: 'lobe',
+                //   name: 'Lobe Chat',
+                //   onClick: () => {
+                //     onOpenLink('lobe', record.key);
+                //   },
+                // },
                 {
                   node: 'item',
                   key: 'ama',
@@ -425,7 +425,7 @@ const TokensTable = () => {
         url = `opencat://team/join?domain=${encodedServerAddress}&token=sk-${key}`;
         break;
       case 'lobe':
-        url = `https://chat-preview.lobehub.com/?settings={"keyVaults":{"openai":{"apiKey":"sk-${key}","baseURL":"${encodedServerAddress}"}}}`;
+        url = `https://chat-preview.lobehub.com/?settings={"keyVaults":{"openai":{"apiKey":"sk-${key}","baseURL":"${encodedServerAddress}/v1"}}}`;
         break;
       case 'next-mj':
         url =
