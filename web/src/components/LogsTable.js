@@ -24,10 +24,11 @@ import {
 } from '@douyinfe/semi-ui';
 import { ITEMS_PER_PAGE } from '../constants';
 import {
+  renderAudioModelPrice,
   renderModelPrice,
   renderNumber,
   renderQuota,
-  stringToColor,
+  stringToColor
 } from '../helpers/render';
 import Paragraph from '@douyinfe/semi-ui/lib/es/typography/paragraph';
 import { getLogOther } from '../helpers/other.js';
@@ -544,7 +545,7 @@ const LogsTable = () => {
     let expandDatesLocal = {};
     for (let i = 0; i < logs.length; i++) {
       logs[i].timestamp2string = timestamp2string(logs[i].created_at);
-      logs[i].key = '' + logs[i].id;
+      logs[i].key = i;
       let other = getLogOther(logs[i].other);
       let expandDataLocal = [];
       if (isAdmin()) {
@@ -566,7 +567,7 @@ const LogsTable = () => {
         //   value: content,
         // })
       }
-      if (other?.ws) {
+      if (other?.ws || other?.audio) {
         expandDataLocal.push({
           key: '语音输入',
           value: other.audio_input,
@@ -589,14 +590,30 @@ const LogsTable = () => {
         value: logs[i].content,
       })
       if (logs[i].type === 2) {
-        let content = renderModelPrice(
+        let content = '';
+        if (other?.ws || other?.audio) {
+          content = renderAudioModelPrice(
+            other.text_input,
+            other.text_output,
+            other.model_ratio,
+            other.model_price,
+            other.completion_ratio,
+            other.audio_input,
+            other.audio_output,
+            other?.audio_ratio,
+            other?.audio_completion_ratio,
+            other.group_ratio,
+          );
+        } else {
+          content = renderModelPrice(
             logs[i].prompt_tokens,
             logs[i].completion_tokens,
             other.model_ratio,
             other.model_price,
             other.completion_ratio,
             other.group_ratio,
-        );
+          );
+        }
         expandDataLocal.push({
           key: '计费过程',
           value: content,
@@ -779,10 +796,27 @@ const LogsTable = () => {
             <Form.Section></Form.Section>
           </>
         </Form>
+        <div style={{marginTop:10}}>
+          <Select
+              defaultValue='0'
+              style={{ width: 120 }}
+              onChange={(value) => {
+                setLogType(parseInt(value));
+                loadLogs(0, pageSize, parseInt(value));
+              }}
+          >
+            <Select.Option value='0'>全部</Select.Option>
+            <Select.Option value='1'>充值</Select.Option>
+            <Select.Option value='2'>消费</Select.Option>
+            <Select.Option value='3'>管理</Select.Option>
+            <Select.Option value='4'>系统</Select.Option>
+          </Select>
+        </div>
         <Table
           style={{ marginTop: 5 }}
           columns={columns}
           expandedRowRender={expandRowRender}
+          expandRowByClick={true}
           dataSource={logs}
           rowKey="key"
           pagination={{
@@ -797,20 +831,6 @@ const LogsTable = () => {
             onPageChange: handlePageChange,
           }}
         />
-        <Select
-          defaultValue='0'
-          style={{ width: 120 }}
-          onChange={(value) => {
-            setLogType(parseInt(value));
-            loadLogs(0, pageSize, parseInt(value));
-          }}
-        >
-          <Select.Option value='0'>全部</Select.Option>
-          <Select.Option value='1'>充值</Select.Option>
-          <Select.Option value='2'>消费</Select.Option>
-          <Select.Option value='3'>管理</Select.Option>
-          <Select.Option value='4'>系统</Select.Option>
-        </Select>
       </Layout>
     </>
   );
