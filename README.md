@@ -64,6 +64,7 @@
 13. 🎵 添加 [Suno API](https://github.com/Suno-API/Suno-API)接口支持，[对接文档](Suno.md)
 14. 🔄 支持Rerank模型，目前兼容Cohere和Jina，可接入Dify，[对接文档](Rerank.md)
 15. ⚡ **[OpenAI Realtime API](https://platform.openai.com/docs/guides/realtime/integration)** - 支持OpenAI的Realtime API，支持Azure渠道
+16. 支持使用路由/chat2link 进入聊天界面
 
 ## 模型支持
 此版本额外支持以下模型：
@@ -86,6 +87,9 @@
 - `UPDATE_TASK`：是否更新异步任务（Midjourney、Suno），默认为 `true`，关闭后将不会更新任务进度。
 - `GEMINI_MODEL_MAP`：Gemini模型指定版本(v1/v1beta)，使用“模型:版本”指定，","分隔，例如：-e GEMINI_MODEL_MAP="gemini-1.5-pro-latest:v1beta,gemini-1.5-pro-001:v1beta"，为空则使用默认配置(v1beta)
 - `COHERE_SAFETY_SETTING`：Cohere模型[安全设置](https://docs.cohere.com/docs/safety-modes#overview)，可选值为 `NONE`, `CONTEXTUAL`，`STRICT`，默认为 `NONE`。
+- `GEMINI_VISION_MAX_IMAGE_NUM`：Gemini模型最大图片数量，默认为 `16`，设置为 `-1` 则不限制。
+- `MAX_FILE_DOWNLOAD_MB`: 最大文件下载大小，单位 MB，默认为 `20`。
+- `CRYPTO_SECRET`：加密密钥，用于加密数据库内容。
 ## 部署
 > [!TIP]
 > 最新版Docker镜像：`calciumion/new-api:latest`  
@@ -94,6 +98,10 @@
 > ```
 > docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR
 > ```
+
+### 多机部署
+- 必须设置环境变量 `SESSION_SECRET`，否则会导致多机部署时登录状态不一致。
+- 如果公用Redis，必须设置 `CRYPTO_SECRET`，否则会导致多机部署时Redis内容无法获取。
 
 ### 部署要求
 - 本地数据库（默认）：SQLite（Docker 部署默认使用 SQLite，必须挂载 `/data` 目录到宿主机）
@@ -151,15 +159,14 @@ docker run --name new-api -d --restart always -p 3000:3000 -e SQL_DSN="root:1234
 [对接文档](Suno.md)
 
 ## 界面截图
-![796df8d287b7b7bd7853b2497e7df511](https://github.com/user-attachments/assets/255b5e97-2d3a-4434-b4fa-e922ad88ff5a)
+![image](https://github.com/user-attachments/assets/a0dcd349-5df8-4dc8-9acf-ca272b239919)
 
-![image](https://github.com/Calcium-Ion/new-api/assets/61247483/ad0e7aae-0203-471c-9716-2d83768927d4)
+
+![image](https://github.com/user-attachments/assets/c7d0f7e1-729c-43e2-ac7c-2cb73b0afc8e)
+
 ![image](https://github.com/user-attachments/assets/29f81de5-33fc-4fc5-a5ff-f9b54b653c7c)
 
-![image](https://github.com/Calcium-Ion/new-api/assets/61247483/3ca0b282-00ff-4c96-bf9d-e29ef615c605)
-夜间模式  
-![image](https://github.com/Calcium-Ion/new-api/assets/61247483/1c66b593-bb9e-4757-9720-ff2759539242)
-![image](https://github.com/Calcium-Ion/new-api/assets/61247483/af9a07ee-5101-4b3d-8bd9-ae21a4fd7e9e)
+![image](https://github.com/user-attachments/assets/4fa53e18-d2c5-477a-9b26-b86e44c71e35)
 
 ## 交流群
 <img src="https://github.com/user-attachments/assets/9ca0bc82-e057-4230-a28d-9f198fa022e3" width="200">
@@ -169,6 +176,10 @@ docker run --name new-api -d --restart always -p 3000:3000 -e SQL_DSN="root:1234
 - [Midjourney-Proxy](https://github.com/novicezk/midjourney-proxy)：Midjourney接口支持
 - [chatnio](https://github.com/Deeptrain-Community/chatnio)：下一代 AI 一站式 B/C 端解决方案
 - [neko-api-key-tool](https://github.com/Calcium-Ion/neko-api-key-tool)：用key查询使用额度
+
+其他基于New API的项目：
+- [new-api-horizon](https://github.com/Calcium-Ion/new-api-horizon)：New API高性能优化版，并支持Claude格式
+- [VoAPI](https://github.com/VoAPI/VoAPI)：基于New API的闭源项目
 
 ## 🌟 Star History
 
