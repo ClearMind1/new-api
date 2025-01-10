@@ -516,6 +516,8 @@ const ChannelsTable = () => {
   const [showBatchSetTag, setShowBatchSetTag] = useState(false);
   const [batchSetTagValue, setBatchSetTagValue] = useState('');
 
+  // 启用、禁用多选
+  const [enableBatch, setEnableBatch] = useState([]);
 
   const removeRecord = (record) => {
     let newDataSource = [...channels];
@@ -798,6 +800,26 @@ const ChannelsTable = () => {
     setSearching(false);
   };
 
+  const batchEnableChannels = async (searchKeyword, searchGroup, searchModel, enableTagMode,enableBatch) => {
+    if (enableBatch === null) {
+      await loadChannels(0, pageSize, idSort, enableTagMode);
+      setActivePage(1);
+      return;
+    }
+    setSearching(true);
+    const res = await API.get(
+      `/api/channel/search?keyword=${searchKeyword}&group=${searchGroup}&model=${searchModel}&id_sort=${idSort}&tag_mode=${enableTagMode}&enable_batch=${enableBatch}`
+    );
+    const { success, message, data } = res.data;
+    if (success) {
+      setChannelFormat(data, enableTagMode);
+      setActivePage(1);
+    } else {
+      showError(message);
+    }
+    setSearching(false);
+  };
+
   const testChannel = async (record, model) => {
     const res = await API.get(`/api/channel/test/${record.id}?model=${model}`);
     const { success, message, time } = res.data;
@@ -1060,6 +1082,18 @@ const ChannelsTable = () => {
             >
               {t('查询')}
             </Button>
+            <Divider layout="vertical" margin='12px'/>
+            <Form.Select
+              field="group"
+              label={t('启用状态✨')}
+              optionList={[{label: t('选择渠道启用状态'), value: null},{ label: t('启用'), value: 1 }, { label: t('禁用'), value: 2 }]}
+              initValue={null}
+              onChange={(v) => {
+                setEnableBatch(v);
+                console.log(v);
+                batchEnableChannels(searchKeyword, searchGroup, searchModel, enableTagMode,v);
+              }}
+            />
           </Space>
         </div>
       </Form>

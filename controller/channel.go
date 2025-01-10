@@ -168,6 +168,7 @@ func FixChannelsAbilities(c *gin.Context) {
 func SearchChannels(c *gin.Context) {
 	keyword := c.Query("keyword")
 	group := c.Query("group")
+	enableBatch := c.Query("enable_batch")
 	modelKeyword := c.Query("model")
 	idSort, _ := strconv.ParseBool(c.Query("id_sort"))
 	enableTagMode, _ := strconv.ParseBool(c.Query("tag_mode"))
@@ -190,7 +191,7 @@ func SearchChannels(c *gin.Context) {
 			}
 		}
 	} else {
-		channels, err := model.SearchChannels(keyword, group, modelKeyword, idSort)
+		channels, err := model.SearchChannels(keyword, group, modelKeyword, idSort, enableBatch)
 		if err != nil {
 			c.JSON(http.StatusOK, gin.H{
 				"success": false,
