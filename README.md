@@ -66,9 +66,14 @@
 15. ⚡ **[OpenAI Realtime API](https://platform.openai.com/docs/guides/realtime/integration)** - 支持OpenAI的Realtime API，支持Azure渠道
 16. 支持使用路由/chat2link 进入聊天界面
 17. 🧠 支持通过模型名称后缀设置 reasoning effort：
-    - 添加后缀 `-high` 设置为 high reasoning effort (例如: `o3-mini-high`)
-    - 添加后缀 `-medium` 设置为 medium reasoning effort (例如: `o3-mini-medium`)
-    - 添加后缀 `-low` 设置为 low reasoning effort (例如: `o3-mini-low`)
+    1. OpenAI o系列模型
+        - 添加后缀 `-high` 设置为 high reasoning effort (例如: `o3-mini-high`)
+        - 添加后缀 `-medium` 设置为 medium reasoning effort (例如: `o3-mini-medium`)
+        - 添加后缀 `-low` 设置为 low reasoning effort (例如: `o3-mini-low`)
+    2. Claude 思考模型
+        - 添加后缀 `-thinking` 启用思考模式 (例如: `claude-3-7-sonnet-20250219-thinking`)
+18. 🔄 思考转内容，支持在 `渠道-编辑-渠道额外设置` 中设置 `thinking_to_content` 选项，默认`false`，开启后会将思考内容`reasoning_content`转换为`<think>`标签拼接到内容中返回。
+19. 🔄 模型限流，支持在 `系统设置-速率限制设置` 中设置模型限流，支持设置总请求数限制和成功请求数限制
 
 ## 模型支持
 此版本额外支持以下模型：
@@ -95,14 +100,14 @@
 - `MAX_FILE_DOWNLOAD_MB`: 最大文件下载大小，单位 MB，默认为 `20`。
 - `CRYPTO_SECRET`：加密密钥，用于加密数据库内容。
 - `AZURE_DEFAULT_API_VERSION`：Azure渠道默认API版本，如果渠道设置中未指定API版本，则使用此版本，默认为 `2024-12-01-preview`
+- `NOTIFICATION_LIMIT_DURATION_MINUTE`：通知限制的持续时间（分钟），默认为 `10`。
+- `NOTIFY_LIMIT_COUNT`：用户通知在指定持续时间内的最大数量，默认为 `2`。
+
 ## 部署
+
 > [!TIP]
 > 最新版Docker镜像：`calciumion/new-api:latest`  
-> 默认账号root 密码123456  
-> 更新指令：
-> ```
-> docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR
-> ```
+> 默认账号root 密码123456
 
 ### 多机部署
 - 必须设置环境变量 `SESSION_SECRET`，否则会导致多机部署时登录状态不一致。
@@ -119,13 +124,25 @@
 [图文教程](BT.md)
 
 ### 基于 Docker 进行部署
+
+> [!TIP]
+> 默认管理员账号root 密码123456
+
 ### 使用 Docker Compose 部署（推荐）
 ```shell
 # 下载项目
 git clone https://github.com/Calcium-Ion/new-api.git
 cd new-api
 # 按需编辑 docker-compose.yml
+# nano docker-compose.yml
+# vim docker-compose.yml
 # 启动
+docker-compose up -d
+```
+
+#### 更新版本
+```shell
+docker-compose pull
 docker-compose up -d
 ```
 
@@ -133,9 +150,26 @@ docker-compose up -d
 ```shell
 # 使用 SQLite 的部署命令：
 docker run --name new-api -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/new-api:/data calciumion/new-api:latest
+
 # 使用 MySQL 的部署命令，在上面的基础上添加 `-e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi"`，请自行修改数据库连接参数。
 # 例如：
 docker run --name new-api -d --restart always -p 3000:3000 -e SQL_DSN="root:123456@tcp(localhost:3306)/oneapi" -e TZ=Asia/Shanghai -v /home/ubuntu/data/new-api:/data calciumion/new-api:latest
+```
+
+#### 更新版本
+```shell
+# 拉取最新镜像
+docker pull calciumion/new-api:latest
+# 停止并删除旧容器
+docker stop new-api
+docker rm new-api
+# 使用相同参数运行新容器
+docker run --name new-api -d --restart always -p 3000:3000 -e TZ=Asia/Shanghai -v /home/ubuntu/data/new-api:/data calciumion/new-api:latest
+```
+
+或者使用 Watchtower 自动更新（不推荐，可能会导致数据库不兼容）：
+```shell
+docker run --rm -v /var/run/docker.sock:/var/run/docker.sock containrrr/watchtower -cR
 ```
 
 ## 渠道重试

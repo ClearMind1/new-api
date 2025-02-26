@@ -62,9 +62,10 @@ type ChatCompletionsStreamResponseChoice struct {
 }
 
 type ChatCompletionsStreamResponseChoiceDelta struct {
-	Content   *string    `json:"content,omitempty"`
-	Role      string     `json:"role,omitempty"`
-	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
+	Content          *string    `json:"content,omitempty"`
+	ReasoningContent *string    `json:"reasoning_content,omitempty"`
+	Role             string     `json:"role,omitempty"`
+	ToolCalls        []ToolCall `json:"tool_calls,omitempty"`
 }
 
 func (c *ChatCompletionsStreamResponseChoiceDelta) SetContentString(s string) {
@@ -78,10 +79,21 @@ func (c *ChatCompletionsStreamResponseChoiceDelta) GetContentString() string {
 	return *c.Content
 }
 
+func (c *ChatCompletionsStreamResponseChoiceDelta) GetReasoningContent() string {
+	if c.ReasoningContent == nil {
+		return ""
+	}
+	return *c.ReasoningContent
+}
+
+func (c *ChatCompletionsStreamResponseChoiceDelta) SetReasoningContent(s string) {
+	c.ReasoningContent = &s
+}
+
 type ToolCall struct {
 	// Index is not nil only in chat completion chunk object
 	Index    *int         `json:"index,omitempty"`
-	ID       string       `json:"id"`
+	ID       string       `json:"id,omitempty"`
 	Type     any          `json:"type"`
 	Function FunctionCall `json:"function"`
 }
@@ -106,6 +118,20 @@ type ChatCompletionsStreamResponse struct {
 	SystemFingerprint *string                               `json:"system_fingerprint"`
 	Choices           []ChatCompletionsStreamResponseChoice `json:"choices"`
 	Usage             *Usage                                `json:"usage"`
+}
+
+func (c *ChatCompletionsStreamResponse) Copy() *ChatCompletionsStreamResponse {
+	choices := make([]ChatCompletionsStreamResponseChoice, len(c.Choices))
+	copy(choices, c.Choices)
+	return &ChatCompletionsStreamResponse{
+		Id:                c.Id,
+		Object:            c.Object,
+		Created:           c.Created,
+		Model:             c.Model,
+		SystemFingerprint: c.SystemFingerprint,
+		Choices:           choices,
+		Usage:             c.Usage,
+	}
 }
 
 func (c *ChatCompletionsStreamResponse) GetSystemFingerprint() string {
