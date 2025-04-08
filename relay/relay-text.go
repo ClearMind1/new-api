@@ -416,7 +416,7 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 	other := service.GenerateTextOtherInfo(ctx, relayInfo, modelRatio, groupRatio, completionRatio, cacheTokens, cacheRatio, modelPrice)
 	content, _ := buildQuestion(ctx)
 	model.RecordConsumeLog(ctx, relayInfo.UserId, relayInfo.ChannelId, promptTokens, completionTokens, logModel,
-		tokenName, quota, logContent, relayInfo.TokenId, userQuota, int(useTimeSeconds), relayInfo.IsStream, relayInfo.Group, other,content)
+		tokenName, quota, logContent, relayInfo.TokenId, userQuota, int(useTimeSeconds), relayInfo.IsStream, relayInfo.Group, other, content)
 }
 
 // 解析发送的文本信息
@@ -427,32 +427,96 @@ func buildQuestion(c *gin.Context) (string, error) {
 		return "", errors.New("failed to unmarshal JSON")
 	}
 
+	// 构建详细的请求信息
+	var details strings.Builder
+	details.WriteString("请求详情:\n")
+
+	// 添加模型信息
+	if model, exists := jsonData["model"]; exists {
+		details.WriteString(fmt.Sprintf("模型: %v\n", model))
+	}
+
+	// 添加请求参数
+	if temperature, exists := jsonData["temperature"]; exists {
+		details.WriteString(fmt.Sprintf("温度: %v\n", temperature))
+	}
+	if topP, exists := jsonData["top_p"]; exists {
+		details.WriteString(fmt.Sprintf("Top P: %v\n", topP))
+	}
+	if maxTokens, exists := jsonData["max_tokens"]; exists {
+		details.WriteString(fmt.Sprintf("最大令牌数: %v\n", maxTokens))
+	}
+
+	// 添加工具调用信息
+	if tools, exists := jsonData["tools"]; exists {
+		if toolList, ok := tools.([]interface{}); ok && len(toolList) > 0 {
+			details.WriteString("工具调用:\n")
+			for _, tool := range toolList {
+				if toolMap, ok := tool.(map[string]interface{}); ok {
+					if function, exists := toolMap["function"]; exists {
+						if funcMap, ok := function.(map[string]interface{}); ok {
+							if name, exists := funcMap["name"]; exists {
+								details.WriteString(fmt.Sprintf("- 函数: %v\n", name))
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+
 	// 获取 messages 集合数据
 	data, exists := jsonData["messages"]
 	if !exists {
-		return "", errors.New("messages key not found in JSON")
+		return details.String(), errors.New("messages key not found in JSON")
 	}
 
 	// 将 data 类型断言为 []interface{}
 	dataArray, ok := data.([]interface{})
 	if !ok || len(dataArray) == 0 {
-		return "", errors.New("messages key is not a valid non-empty array")
+		return details.String(), errors.New("messages key is not a valid non-empty array")
+	}
+
+	// 添加完整的对话历史
+	details.WriteString("\n对话历史:\n")
+	var systemPrompts []string
+	for i, msg := range dataArray {
+		if msgMap, ok := msg.(map[string]interface{}); ok {
+			role, _ := msgMap["role"].(string)
+			content, _ := msgMap["content"].(string)
+			if role == "system" {
+				systemPrompts = append(systemPrompts, content)
+				details.WriteString(fmt.Sprintf("%d. [系统指令] %s\n", i+1, content))
+			} else {
+				details.WriteString(fmt.Sprintf("%d. [%s] %s\n", i+1, role, content))
+			}
+		}
+	}
+
+	// 如果有系统指令，单独列出
+	if len(systemPrompts) > 0 {
+		details.WriteString("\n系统指令汇总:\n")
+		for i, prompt := range systemPrompts {
+			details.WriteString(fmt.Sprintf("%d. %s\n", i+1, prompt))
+		}
 	}
 
 	// 找到集合中索引最大的元素，并断言为 map[string]interface{}
 	maxValue, ok := dataArray[len(dataArray)-1].(map[string]interface{})
 	if !ok {
-		return "", errors.New("max value is not a valid map")
+		return details.String(), errors.New("max value is not a valid map")
 	}
 
 	// 检查 role 是否为 "user" 并提取 content 字段
 	if role, roleExists := maxValue["role"].(string); !roleExists || role != "user" {
-		return "", nil
+		return details.String(), nil
 	}
 
 	if content, contentExists := maxValue["content"].(string); contentExists {
-		return content, nil
+		details.WriteString("\n最新用户消息:\n")
+		details.WriteString(content)
+		return details.String(), nil
 	} else {
-		return "", errors.New("content not found in max element")
+		return details.String(), errors.New("content not found in max element")
 	}
 }
