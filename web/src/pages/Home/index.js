@@ -66,6 +66,10 @@ const Home = () => {
   };
 
   useEffect(() => {
+    if (statusState.status?.setup === false) {
+      window.location.href = '/setup';
+      return;
+    }
     displayNotice().then();
     displayHomePageContent().then();
   });
@@ -150,6 +154,12 @@ const Home = () => {
                     {statusState?.status?.github_oauth === true
                       ? t('已启用')
                       : t('未启用')}
+                  </p>
+                  <p>
+                    {t('OIDC 身份验证')}：
+                    {statusState?.status?.oidc === true
+                        ? t('已启用')
+                        : t('未启用')}
                   </p>
                   <p>
                     {t('微信身份验证')}：

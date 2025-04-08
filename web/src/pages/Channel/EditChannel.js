@@ -6,7 +6,7 @@ import {
   isMobile,
   showError,
   showInfo,
-  showSuccess,
+  showSuccess, showWarning,
   verifyJSON
 } from '../../helpers';
 import { CHANNEL_OPTIONS } from '../../constants';
@@ -22,11 +22,9 @@ import {
   Select,
   TextArea,
   Checkbox,
-  Banner
+  Banner, Modal
 } from '@douyinfe/semi-ui';
-import { Divider } from 'semantic-ui-react';
 import { getChannelModels, loadChannelModels } from '../../components/utils.js';
-import axios from 'axios';
 
 const MODEL_MAPPING_EXAMPLE = {
   'gpt-3.5-turbo': 'gpt-3.5-turbo-0125'
@@ -40,8 +38,6 @@ const REGION_EXAMPLE = {
   'default': 'us-central1',
   'claude-3-5-sonnet-20240620': 'europe-west1'
 };
-
-const fetchButtonTips = '1. 新建渠道时，请求通过当前浏览器发出；2. 编辑已有渠道，请求通过后端服务器发出';
 
 function type2secretPrompt(type) {
   // inputs.type === 15 ? '按照如下格式输入：APIKey|SecretKey' : (inputs.type === 18 ? '按照如下格式输入：APPID|APISecret|APIKey' : '请输入渠道对应的鉴权密钥')
@@ -99,6 +95,16 @@ const EditChannel = (props) => {
   const [fullModels, setFullModels] = useState([]);
   const [customModel, setCustomModel] = useState('');
   const handleInputChange = (name, value) => {
+    if (name === 'base_url' && value.endsWith('/v1')) {
+      Modal.confirm({
+        title: '警告',
+        content: '不需要在末尾加/v1，New API会自动处理，添加后可能导致请求失败，是否继续？',
+        onOk: () => {
+          setInputs((inputs) => ({ ...inputs, [name]: value }));
+        }
+      })
+      return
+    }
     setInputs((inputs) => ({ ...inputs, [name]: value }));
     if (name === 'type') {
       let localModels = [];
@@ -327,9 +333,6 @@ const EditChannel = (props) => {
         localInputs.base_url.length - 1
       );
     }
-    if (localInputs.type === 3 && localInputs.other === '') {
-      localInputs.other = '2023-06-01-preview';
-    }
     if (localInputs.type === 18 && localInputs.other === '') {
       localInputs.other = 'v2.1';
     }
@@ -494,7 +497,7 @@ const EditChannel = (props) => {
               <Input
                 label={t('默认 API 版本')}
                 name="azure_other"
-                placeholder={t('请输入默认 API 版本，例如：2023-06-01-preview，该配置可以被实际的请求查询参数所覆盖')}
+                placeholder={t('请输入默认 API 版本，例如：2024-12-01-preview')}
                 onChange={(value) => {
                   handleInputChange('other', value);
                 }}
@@ -525,6 +528,16 @@ const EditChannel = (props) => {
                 value={inputs.base_url}
                 autoComplete="new-password"
               />
+            </>
+          )}
+          {inputs.type === 37 && (
+            <>
+              <div style={{ marginTop: 10 }}>
+                <Banner
+                  type={'warning'}
+                  description={t('Dify渠道只适配chatflow和agent，并且agent不支持图片！')}
+                ></Banner>
+              </div>
             </>
           )}
           <div style={{ marginTop: 10 }}>
@@ -969,6 +982,23 @@ const EditChannel = (props) => {
                 {t('设置说明')}
               </Typography.Text>
             </Space>
+          </>
+          <>
+            <div style={{ marginTop: 10 }}>
+              <Typography.Text strong>
+                {t('参数覆盖')}：
+              </Typography.Text>
+            </div>
+            <TextArea
+              placeholder={t('此项可选，用于覆盖请求参数。不支持覆盖 stream 参数。为一个 JSON 字符串，例如：') + '\n{\n  "temperature": 0\n}'}
+              name="setting"
+              onChange={(value) => {
+                handleInputChange('param_override', value);
+              }}
+              autosize
+              value={inputs.param_override}
+              autoComplete="new-password"
+            />
           </>
           {inputs.type === 1 && (
             <>
