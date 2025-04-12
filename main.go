@@ -34,7 +34,7 @@ var indexPage []byte
 func main() {
 	err := godotenv.Load(".env")
 	if err != nil {
-		common.SysLog("Support for .env file is disabled")
+		common.SysLog("Support for .env file is disabled: " + err.Error())
 	}
 
 	common.LoadEnv()
@@ -52,6 +52,9 @@ func main() {
 	if err != nil {
 		common.FatalLog("failed to initialize database: " + err.Error())
 	}
+
+	model.CheckSetup()
+
 	// Initialize SQL Database
 	err = model.InitLogDB()
 	if err != nil {
@@ -70,13 +73,13 @@ func main() {
 		common.FatalLog("failed to initialize Redis: " + err.Error())
 	}
 
+	// Initialize model settings
+	operation_setting.InitModelSettings()
 	// Initialize constants
 	constant.InitEnv()
 	// Initialize options
 	model.InitOptionMap()
-	// Initialize model settings
-	operation_setting.InitModelSettings()
-	
+
 	if common.RedisEnabled {
 		// for compatibility with old versions
 		common.MemoryCacheEnabled = true
