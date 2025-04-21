@@ -19,17 +19,40 @@ import (
 )
 
 // Setting safety to the lowest possible values since Gemini is already powerless enough
-func CovertGemini2OpenAI(textRequest dto.GeneralOpenAIRequest) (*GeminiChatRequest, error) {
+func CovertGemini2OpenAI(textRequest dto.GeneralOpenAIRequest, info *relaycommon.RelayInfo) (*GeminiChatRequest, error) {
 
 	geminiRequest := GeminiChatRequest{
 		Contents: make([]GeminiChatContent, 0, len(textRequest.Messages)),
-		//SafetySettings: []GeminiChatSafetySettings{},
 		GenerationConfig: GeminiChatGenerationConfig{
 			Temperature:     textRequest.Temperature,
 			TopP:            textRequest.TopP,
 			MaxOutputTokens: textRequest.MaxTokens,
 			Seed:            int64(textRequest.Seed),
 		},
+	}
+
+	if model_setting.IsGeminiModelSupportImagine(info.UpstreamModelName) {
+		geminiRequest.GenerationConfig.ResponseModalities = []string{
+			"TEXT",
+			"IMAGE",
+		}
+	}
+
+	if model_setting.GetGeminiSettings().ThinkingAdapterEnabled {
+		if strings.HasSuffix(info.OriginModelName, "-thinking") {
+			budgetTokens := model_setting.GetGeminiSettings().ThinkingAdapterBudgetTokensPercentage * float64(geminiRequest.GenerationConfig.MaxOutputTokens)
+			if budgetTokens == 0 || budgetTokens > 24576 {
+				budgetTokens = 24576
+			}
+			geminiRequest.GenerationConfig.ThinkingConfig = &GeminiThinkingConfig{
+				ThinkingBudget:  common.GetPointer(int(budgetTokens)),
+				IncludeThoughts: true,
+			}
+		} else if strings.HasSuffix(info.OriginModelName, "-nothinking") {
+			geminiRequest.GenerationConfig.ThinkingConfig = &GeminiThinkingConfig{
+				ThinkingBudget: common.GetPointer(0),
+			}
+		}
 	}
 
 	safetySettings := make([]GeminiChatSafetySettings, 0, len(SafetySettingList))
@@ -279,6 +302,13 @@ func cleanFunctionParameters(params interface{}) interface{} {
 		cleanedMap[k] = v
 	}
 
+	// Remove unsupported root-level fields
+	delete(cleanedMap, "default")
+	delete(cleanedMap, "exclusiveMaximum")
+	delete(cleanedMap, "exclusiveMinimum")
+	delete(cleanedMap, "$schema")
+	delete(cleanedMap, "additionalProperties")
+
 	// Clean properties
 	if props, ok := cleanedMap["properties"].(map[string]interface{}); ok && props != nil {
 		cleanedProps := make(map[string]interface{})
@@ -299,6 +329,8 @@ func cleanFunctionParameters(params interface{}) interface{} {
 			delete(cleanedPropMap, "default")
 			delete(cleanedPropMap, "exclusiveMaximum")
 			delete(cleanedPropMap, "exclusiveMinimum")
+			delete(cleanedPropMap, "$schema")
+			delete(cleanedPropMap, "additionalProperties")
 
 			// Check and clean 'format' for string types
 			if propType, typeExists := cleanedPropMap["type"].(string); typeExists && propType == "string" {
@@ -546,9 +578,10 @@ func responseGeminiChat2OpenAI(response *GeminiChatResponse) *dto.OpenAITextResp
 	return &fullTextResponse
 }
 
-func streamResponseGeminiChat2OpenAI(geminiResponse *GeminiChatResponse) (*dto.ChatCompletionsStreamResponse, bool) {
+func streamResponseGeminiChat2OpenAI(geminiResponse *GeminiChatResponse) (*dto.ChatCompletionsStreamResponse, bool, bool) {
 	choices := make([]dto.ChatCompletionsStreamResponseChoice, 0, len(geminiResponse.Candidates))
 	isStop := false
+	hasImage := false
 	for _, candidate := range geminiResponse.Candidates {
 		if candidate.FinishReason != nil && *candidate.FinishReason == "STOP" {
 			isStop = true
@@ -574,7 +607,13 @@ func streamResponseGeminiChat2OpenAI(geminiResponse *GeminiChatResponse) (*dto.C
 			}
 		}
 		for _, part := range candidate.Content.Parts {
-			if part.FunctionCall != nil {
+			if part.InlineData != nil {
+				if strings.HasPrefix(part.InlineData.MimeType, "image") {
+					imgText := "![image](data:" + part.InlineData.MimeType + ";base64," + part.InlineData.Data + ")"
+					texts = append(texts, imgText)
+					hasImage = true
+				}
+			} else if part.FunctionCall != nil {
 				isTools = true
 				if call := getResponseToolCall(&part); call != nil {
 					call.SetIndex(len(choice.Delta.ToolCalls))
@@ -602,7 +641,7 @@ func streamResponseGeminiChat2OpenAI(geminiResponse *GeminiChatResponse) (*dto.C
 	var response dto.ChatCompletionsStreamResponse
 	response.Object = "chat.completion.chunk"
 	response.Choices = choices
-	return &response, isStop
+	return &response, isStop, hasImage
 }
 
 func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycommon.RelayInfo) (*dto.OpenAIErrorWithStatusCode, *dto.Usage) {
@@ -610,23 +649,27 @@ func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycom
 	id := fmt.Sprintf("chatcmpl-%s", common.GetUUID())
 	createAt := common.GetTimestamp()
 	var usage = &dto.Usage{}
+	var imageCount int
 
 	helper.StreamScannerHandler(c, resp, info, func(data string) bool {
 		var geminiResponse GeminiChatResponse
-		err := json.Unmarshal([]byte(data), &geminiResponse)
+		err := common.DecodeJsonStr(data, &geminiResponse)
 		if err != nil {
 			common.LogError(c, "error unmarshalling stream response: "+err.Error())
 			return false
 		}
 
-		response, isStop := streamResponseGeminiChat2OpenAI(&geminiResponse)
+		response, isStop, hasImage := streamResponseGeminiChat2OpenAI(&geminiResponse)
+		if hasImage {
+			imageCount++
+		}
 		response.Id = id
 		response.Created = createAt
 		response.Model = info.UpstreamModelName
-		// responseText += response.Choices[0].Delta.GetContentString()
 		if geminiResponse.UsageMetadata.TotalTokenCount != 0 {
 			usage.PromptTokens = geminiResponse.UsageMetadata.PromptTokenCount
 			usage.CompletionTokens = geminiResponse.UsageMetadata.CandidatesTokenCount
+			usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
 		}
 		err = helper.ObjectData(c, response)
 		if err != nil {
@@ -641,9 +684,15 @@ func GeminiChatStreamHandler(c *gin.Context, resp *http.Response, info *relaycom
 
 	var response *dto.ChatCompletionsStreamResponse
 
+	if imageCount != 0 {
+		if usage.CompletionTokens == 0 {
+			usage.CompletionTokens = imageCount * 258
+		}
+	}
+
 	usage.TotalTokens = usage.PromptTokens + usage.CompletionTokens
 	usage.PromptTokensDetails.TextTokens = usage.PromptTokens
-	usage.CompletionTokenDetails.TextTokens = usage.CompletionTokens
+	//usage.CompletionTokenDetails.TextTokens = usage.CompletionTokens
 
 	if info.ShouldIncludeUsage {
 		response = helper.GenerateFinalUsageResponse(id, createAt, info.UpstreamModelName, *usage)
@@ -689,6 +738,9 @@ func GeminiChatHandler(c *gin.Context, resp *http.Response, info *relaycommon.Re
 		CompletionTokens: geminiResponse.UsageMetadata.CandidatesTokenCount,
 		TotalTokens:      geminiResponse.UsageMetadata.TotalTokenCount,
 	}
+
+	usage.CompletionTokenDetails.ReasoningTokens = geminiResponse.UsageMetadata.ThoughtsTokenCount
+
 	fullTextResponse.Usage = usage
 	jsonResponse, err := json.Marshal(fullTextResponse)
 	if err != nil {
