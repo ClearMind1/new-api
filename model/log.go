@@ -35,6 +35,7 @@ type Log struct {
 	Group            string `json:"group" gorm:"index"`
 	Ip               string `json:"ip" gorm:"index;default:''"`
 	Other            string `json:"other"`
+	QaContext        string `json:"qa_context"`
 }
 
 const (
@@ -176,8 +177,8 @@ func RecordConsumeLog(c *gin.Context, userId int, channelId int, promptTokens in
 			}
 			return ""
 		}(),
-		Other: otherStr,
-		QaContext:        qaContext,
+		Other:     otherStr,
+		QaContext: qaContext,
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
