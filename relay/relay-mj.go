@@ -537,7 +537,7 @@ func RelayMidjourneySubmit(c *gin.Context, relayMode int) *dto.MidjourneyRespons
 				UserQuota: userQuota,
 				Group:     group,
 				Other:     other,
-				QaContext: ""
+				QaContext: "",
 			})
 			model.UpdateUserUsedQuotaAndRequestCount(userId, priceData.Quota)
 			model.UpdateChannelUsedQuota(channelId, priceData.Quota)

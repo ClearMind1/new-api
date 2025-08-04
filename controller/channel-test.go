@@ -272,7 +272,7 @@ func testChannel(channel *model.Channel, testModel string) testResult {
 		IsStream:         false,
 		Group:            info.UsingGroup,
 		Other:            other,
-		QA : "",
+		QaContext:        "",
 	})
 	common.SysLog(fmt.Sprintf("testing channel #%d, response: \n%s", channel.Id, string(respBody)))
 	return testResult{

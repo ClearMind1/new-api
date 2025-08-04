@@ -148,7 +148,7 @@ type RecordConsumeLogParams struct {
 	IsStream         bool                   `json:"is_stream"`
 	Group            string                 `json:"group"`
 	Other            map[string]interface{} `json:"other"`
-	QaContext        string `json:"qa_context"`
+	QaContext        string                 `json:"qa_context"`
 }
 
 func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams) {
@@ -188,7 +188,7 @@ func RecordConsumeLog(c *gin.Context, userId int, params RecordConsumeLogParams)
 			return ""
 		}(),
 		Other:     otherStr,
-		QaContext: qaContext,
+		QaContext: "",
 	}
 	err := LOG_DB.Create(log).Error
 	if err != nil {
