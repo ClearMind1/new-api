@@ -519,7 +519,7 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 		logContent += ", " + extraContent
 	}
 	other := service.GenerateTextOtherInfo(ctx, relayInfo, modelRatio, groupRatio, completionRatio, cacheTokens, cacheRatio, modelPrice, priceData.GroupRatioInfo.GroupSpecialRatio)
-	content, _ := buildQuestion(ctx)
+	content, _ := qARecordLog(ctx)
 	if imageTokens != 0 {
 		other["image"] = true
 		other["image_ratio"] = imageRatio
@@ -573,11 +573,26 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo,
 }
 
 // 解析发送的文本信息
-func buildQuestion(c *gin.Context) (string, error) {
-	// 读取并解析请求体中的 JSON 数据
-	var jsonData map[string]interface{}
-	if err := c.ShouldBindJSON(&jsonData); err != nil {
-		return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
+func qARecordLog(c *gin.Context) (string, error) {
+	// 从上下文中获取已解析的请求数据
+	requestData, exists := c.Get("original_request")
+	if !exists {
+		// 如果上下文中没有原始请求数据，尝试从请求体获取
+		body, err := common.GetRequestBody(c)
+		if err != nil {
+			return "", fmt.Errorf("failed to get request body: %w", err)
+		}
+
+		var jsonData map[string]interface{}
+		if err := json.Unmarshal(body, &jsonData); err != nil {
+			return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
+		}
+		requestData = jsonData
+	}
+
+	jsonData, ok := requestData.(map[string]interface{})
+	if !ok {
+		return "", fmt.Errorf("request data is not a valid JSON object")
 	}
 
 	var details strings.Builder
