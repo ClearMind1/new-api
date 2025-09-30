@@ -9,6 +9,22 @@ type ChannelSettings struct {
 	SystemPromptOverride   bool   `json:"system_prompt_override,omitempty"`
 }
 
+type VertexKeyType string
+
+const (
+	VertexKeyTypeJSON   VertexKeyType = "json"
+	VertexKeyTypeAPIKey VertexKeyType = "api_key"
+)
+
 type ChannelOtherSettings struct {
-	AzureResponsesVersion string `json:"azure_responses_version,omitempty"`
+	AzureResponsesVersion string        `json:"azure_responses_version,omitempty"`
+	VertexKeyType         VertexKeyType `json:"vertex_key_type,omitempty"` // "json" or "api_key"
+	OpenRouterEnterprise  *bool         `json:"openrouter_enterprise,omitempty"`
+}
+
+func (s *ChannelOtherSettings) IsOpenRouterEnterprise() bool {
+	if s == nil || s.OpenRouterEnterprise == nil {
+		return false
+	}
+	return *s.OpenRouterEnterprise
 }
