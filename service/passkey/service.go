@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	"one-api/common"
-	"one-api/setting/system_setting"
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	webauthn "github.com/go-webauthn/webauthn/webauthn"
@@ -80,9 +80,11 @@ func BuildWebAuthn(r *http.Request) (*webauthn.WebAuthn, error) {
 }
 
 func resolveOrigins(r *http.Request, settings *system_setting.PasskeySettings) ([]string, error) {
-	if len(settings.Origins) > 0 {
-		origins := make([]string, 0, len(settings.Origins))
-		for _, origin := range settings.Origins {
+	originsStr := strings.TrimSpace(settings.Origins)
+	if originsStr != "" {
+		originList := strings.Split(originsStr, ",")
+		origins := make([]string, 0, len(originList))
+		for _, origin := range originList {
 			trimmed := strings.TrimSpace(origin)
 			if trimmed == "" {
 				continue

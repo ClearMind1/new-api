@@ -4,13 +4,15 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"one-api/common"
-	"one-api/constant"
-	"one-api/dto"
-	"one-api/model"
-	"one-api/service"
 	"strconv"
 	"strings"
+
+	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/constant"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/relay/channel/volcengine"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -191,6 +193,12 @@ func FetchUpstreamModels(c *gin.Context) {
 		url = fmt.Sprintf("%s/compatible-mode/v1/models", baseURL)
 	case constant.ChannelTypeZhipu_v4:
 		url = fmt.Sprintf("%s/api/paas/v4/models", baseURL)
+	case constant.ChannelTypeVolcEngine:
+		if baseURL == volcengine.DoubaoCodingPlan {
+			url = fmt.Sprintf("%s/v1/models", volcengine.DoubaoCodingPlanOpenAIBaseURL)
+		} else {
+			url = fmt.Sprintf("%s/v1/models", baseURL)
+		}
 	default:
 		url = fmt.Sprintf("%s/v1/models", baseURL)
 	}
@@ -198,9 +206,10 @@ func FetchUpstreamModels(c *gin.Context) {
 	// 获取响应体 - 根据渠道类型决定是否添加 AuthHeader
 	var body []byte
 	key := strings.Split(channel.Key, "\n")[0]
-	if channel.Type == constant.ChannelTypeGemini {
-		body, err = GetResponseBody("GET", url, channel, GetAuthHeader(key)) // Use AuthHeader since Gemini now forces it
-	} else {
+	switch channel.Type {
+	case constant.ChannelTypeAnthropic:
+		body, err = GetResponseBody("GET", url, channel, GetClaudeAuthHeader(key))
+	default:
 		body, err = GetResponseBody("GET", url, channel, GetAuthHeader(key))
 	}
 	if err != nil {
@@ -648,13 +657,15 @@ func DeleteDisabledChannel(c *gin.Context) {
 }
 
 type ChannelTag struct {
-	Tag          string  `json:"tag"`
-	NewTag       *string `json:"new_tag"`
-	Priority     *int64  `json:"priority"`
-	Weight       *uint   `json:"weight"`
-	ModelMapping *string `json:"model_mapping"`
-	Models       *string `json:"models"`
-	Groups       *string `json:"groups"`
+	Tag            string  `json:"tag"`
+	NewTag         *string `json:"new_tag"`
+	Priority       *int64  `json:"priority"`
+	Weight         *uint   `json:"weight"`
+	ModelMapping   *string `json:"model_mapping"`
+	Models         *string `json:"models"`
+	Groups         *string `json:"groups"`
+	ParamOverride  *string `json:"param_override"`
+	HeaderOverride *string `json:"header_override"`
 }
 
 func DisableTagChannels(c *gin.Context) {
@@ -720,7 +731,29 @@ func EditTagChannels(c *gin.Context) {
 		})
 		return
 	}
-	err = model.EditChannelByTag(channelTag.Tag, channelTag.NewTag, channelTag.ModelMapping, channelTag.Models, channelTag.Groups, channelTag.Priority, channelTag.Weight)
+	if channelTag.ParamOverride != nil {
+		trimmed := strings.TrimSpace(*channelTag.ParamOverride)
+		if trimmed != "" && !json.Valid([]byte(trimmed)) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "参数覆盖必须是合法的 JSON 格式",
+			})
+			return
+		}
+		channelTag.ParamOverride = common.GetPointer[string](trimmed)
+	}
+	if channelTag.HeaderOverride != nil {
+		trimmed := strings.TrimSpace(*channelTag.HeaderOverride)
+		if trimmed != "" && !json.Valid([]byte(trimmed)) {
+			c.JSON(http.StatusOK, gin.H{
+				"success": false,
+				"message": "请求头覆盖必须是合法的 JSON 格式",
+			})
+			return
+		}
+		channelTag.HeaderOverride = common.GetPointer[string](trimmed)
+	}
+	err = model.EditChannelByTag(channelTag.Tag, channelTag.NewTag, channelTag.ModelMapping, channelTag.Models, channelTag.Groups, channelTag.Priority, channelTag.Weight, channelTag.ParamOverride, channelTag.HeaderOverride)
 	if err != nil {
 		common.ApiError(c, err)
 		return

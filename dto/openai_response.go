@@ -3,7 +3,8 @@ package dto
 import (
 	"encoding/json"
 	"fmt"
-	"one-api/types"
+
+	"github.com/QuantumNous/new-api/types"
 )
 
 const (
@@ -229,8 +230,23 @@ type Usage struct {
 	InputTokens            int                `json:"input_tokens"`
 	OutputTokens           int                `json:"output_tokens"`
 	InputTokensDetails     *InputTokenDetails `json:"input_tokens_details"`
+
+	// claude cache 1h
+	ClaudeCacheCreation5mTokens int `json:"claude_cache_creation_5_m_tokens"`
+	ClaudeCacheCreation1hTokens int `json:"claude_cache_creation_1_h_tokens"`
+
 	// OpenRouter Params
 	Cost any `json:"cost,omitempty"`
+}
+
+type OpenAIVideoResponse struct {
+	Id        string `json:"id" example:"file-abc123"`
+	Object    string `json:"object" example:"file"`
+	Bytes     int64  `json:"bytes" example:"120000"`
+	CreatedAt int64  `json:"created_at" example:"1677610602"`
+	ExpiresAt int64  `json:"expires_at" example:"1677614202"`
+	Filename  string `json:"filename" example:"mydata.jsonl"`
+	Purpose   string `json:"purpose" example:"fine-tune"`
 }
 
 type InputTokenDetails struct {
