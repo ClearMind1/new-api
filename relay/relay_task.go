@@ -530,7 +530,6 @@ func mapTaskStatusToSimple(status model.TaskStatus) string {
 	default:
 		return "processing"
 	}
-	return
 }
 
 func TaskModel2Dto(task *model.Task) *dto.TaskDto {

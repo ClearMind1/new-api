@@ -2,8 +2,6 @@ package relay
 
 import (
 	"bytes"
-	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -510,135 +508,7 @@ func postConsumeQuota(ctx *gin.Context, relayInfo *relaycommon.RelayInfo, usage 
 	})
 }
 
-// 解析发送的文本信息
+// 解析发送的文本信息（暂置空）
 func qARecordLog(c *gin.Context) (string, error) {
-	// 从上下文中获取已解析的请求数据
-	requestData, exists := c.Get("original_request")
-	if !exists {
-		// 如果上下文中没有原始请求数据，尝试从请求体获取
-		body, err := common.GetRequestBody(c)
-		if err != nil {
-			return "", fmt.Errorf("failed to get request body: %w", err)
-		}
-
-		var jsonData map[string]interface{}
-		if err := json.Unmarshal(body, &jsonData); err != nil {
-			return "", fmt.Errorf("failed to unmarshal JSON: %w", err)
-		}
-		requestData = jsonData
-	}
-
-	jsonData, ok := requestData.(map[string]interface{})
-	if !ok {
-		return "", fmt.Errorf("request data is not a valid JSON object")
-	}
-
-	var details strings.Builder
-	details.Grow(1024) // 预分配内存，减少重分配
-	details.WriteString("请求详情:\n")
-
-	// 添加模型信息
-	if model, exists := jsonData["model"]; exists {
-		details.WriteString(fmt.Sprintf("模型: %v\n", model))
-	}
-
-	// 添加请求参数
-	params := []struct {
-		key   string
-		label string
-	}{
-		{"temperature", "温度"},
-		{"top_p", "Top P"},
-		{"max_tokens", "最大令牌数"},
-	}
-
-	for _, param := range params {
-		if value, exists := jsonData[param.key]; exists {
-			details.WriteString(fmt.Sprintf("%s: %v\n", param.label, value))
-		}
-	}
-
-	// 添加工具调用信息
-	if tools, exists := jsonData["tools"]; exists {
-		if toolList, ok := tools.([]interface{}); ok && len(toolList) > 0 {
-			details.WriteString("工具调用:\n")
-			for _, tool := range toolList {
-				if toolMap, ok := tool.(map[string]interface{}); ok {
-					if function, exists := toolMap["function"]; exists {
-						if funcMap, ok := function.(map[string]interface{}); ok {
-							if name, exists := funcMap["name"]; exists {
-								details.WriteString(fmt.Sprintf("- 函数: %v\n", name))
-							}
-						}
-					}
-				}
-			}
-		}
-	}
-
-	// 获取 messages 集合数据
-	data, exists := jsonData["messages"]
-	if !exists {
-		return details.String(), errors.New("messages key not found in JSON")
-	}
-
-	// 将 data 类型断言为 []interface{}
-	dataArray, ok := data.([]interface{})
-	if !ok {
-		return details.String(), errors.New("messages key is not a valid array")
-	}
-
-	if len(dataArray) == 0 {
-		return details.String(), errors.New("messages array is empty")
-	}
-
-	// 添加完整的对话历史
-	details.WriteString("\n对话历史:\n")
-	var systemPrompts []string
-
-	for i, msg := range dataArray {
-		msgMap, ok := msg.(map[string]interface{})
-		if !ok {
-			continue // 跳过无效消息而不是中断整个处理
-		}
-
-		role, _ := msgMap["role"].(string)
-		content, _ := msgMap["content"].(string)
-
-		if role == "system" {
-			systemPrompts = append(systemPrompts, content)
-			details.WriteString(fmt.Sprintf("%d. [系统指令] %s\n", i+1, content))
-		} else {
-			details.WriteString(fmt.Sprintf("%d. [%s] %s\n", i+1, role, content))
-		}
-	}
-
-	// 如果有系统指令，单独列出
-	if len(systemPrompts) > 0 {
-		details.WriteString("\n系统指令汇总:\n")
-		for i, prompt := range systemPrompts {
-			details.WriteString(fmt.Sprintf("%d. %s\n", i+1, prompt))
-		}
-	}
-
-	// 获取最后一条消息
-	lastMsg, ok := dataArray[len(dataArray)-1].(map[string]interface{})
-	if !ok {
-		return details.String(), errors.New("last message is not a valid map")
-	}
-
-	// 检查 role 是否为 "user" 并提取 content 字段
-	role, roleExists := lastMsg["role"].(string)
-	if !roleExists || role != "user" {
-		return details.String(), nil
-	}
-
-	content, contentExists := lastMsg["content"].(string)
-	if !contentExists {
-		return details.String(), errors.New("content not found in last user message")
-	}
-
-	details.WriteString("\n最新用户消息:\n")
-	details.WriteString(content)
-	return details.String(), nil
+	return (""), nil
 }
