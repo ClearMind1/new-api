@@ -289,7 +289,7 @@ func GetChannelsByTag(tag string, idSort bool, selectAll bool) ([]*Channel, erro
 	return channels, err
 }
 
-func SearchChannels(keyword string, group string, model string, idSort bool, enableBatch string) ([]*Channel, error) {
+func SearchChannels(keyword string, group string, model string, idSort bool) ([]*Channel, error) {
 	var channels []*Channel
 	modelsCol := "`models`"
 
@@ -328,13 +328,6 @@ func SearchChannels(keyword string, group string, model string, idSort bool, ena
 	} else {
 		whereClause = "(id = ? OR name LIKE ? OR " + commonKeyCol + " = ? OR " + baseURLCol + " LIKE ?) AND " + modelsCol + " LIKE ?"
 		args = append(args, common.String2Int(keyword), "%"+keyword+"%", keyword, "%"+keyword+"%", "%"+model+"%")
-	}
-	if enableBatch != "" && enableBatch != "null" {
-		if enableBatch == "1" {
-			whereClause += " AND status = 1"
-		} else {
-			whereClause += " AND status != 1"
-		}
 	}
 
 	// 执行查询
