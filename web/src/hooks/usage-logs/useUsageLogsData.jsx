@@ -60,6 +60,7 @@ export const useLogsData = () => {
     RETRY: 'retry',
     IP: 'ip',
     DETAILS: 'details',
+    REQUEST_DETAIL: 'request_detail',
   };
 
   // Basic state
@@ -123,6 +124,7 @@ export const useLogsData = () => {
       [COLUMN_KEYS.RETRY]: isAdminUser,
       [COLUMN_KEYS.IP]: true,
       [COLUMN_KEYS.DETAILS]: true,
+      [COLUMN_KEYS.REQUEST_DETAIL]: true,
     };
   };
 
@@ -184,6 +186,18 @@ export const useLogsData = () => {
     useState(null);
   const [showParamOverrideModal, setShowParamOverrideModal] = useState(false);
   const [paramOverrideTarget, setParamOverrideTarget] = useState(null);
+
+  // Request detail modal state
+  const [showRequestDetail, setShowRequestDetail] = useState(false);
+  const [requestDetailTarget, setRequestDetailTarget] = useState(null);
+
+  const openRequestDetail = (record) => {
+    setRequestDetailTarget({
+      request_id: record?.request_id || '',
+      model_name: record?.model_name || '',
+    });
+    setShowRequestDetail(true);
+  };
 
   // Initialize default column visibility
   const initDefaultColumns = () => {
@@ -872,6 +886,12 @@ export const useLogsData = () => {
     showParamOverrideModal,
     setShowParamOverrideModal,
     paramOverrideTarget,
+
+    // Request detail modal
+    showRequestDetail,
+    setShowRequestDetail,
+    requestDetailTarget,
+    openRequestDetail,
 
     // Functions
     loadLogs,

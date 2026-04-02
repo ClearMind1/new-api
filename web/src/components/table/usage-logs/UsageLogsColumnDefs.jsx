@@ -25,6 +25,7 @@ import {
   Tooltip,
   Popover,
   Typography,
+  Button,
 } from '@douyinfe/semi-ui';
 import {
   renderGroup,
@@ -35,7 +36,7 @@ import {
   renderModelPriceSimple,
 } from '../../../helpers';
 import { IconHelpCircle } from '@douyinfe/semi-icons';
-import { Route, Sparkles } from 'lucide-react';
+import { Route, Sparkles, FileText } from 'lucide-react';
 
 const colors = [
   'amber',
@@ -467,6 +468,7 @@ export const getLogsColumns = ({
   openChannelAffinityUsageCacheModal,
   isAdminUser,
   billingDisplayMode = 'price',
+  openRequestDetail,
 }) => {
   return [
     {
@@ -876,6 +878,35 @@ export const getLogsColumns = ({
           }
         }
         return isAdminUser ? <div>{content}</div> : <></>;
+      },
+    },
+    {
+      key: COLUMN_KEYS.REQUEST_DETAIL,
+      title: t('请求详情'),
+      dataIndex: 'request_id',
+      fixed: 'right',
+      width: 90,
+      render: (text, record, index) => {
+        const hasRequestId = record?.request_id && record.request_id !== '';
+        if (!hasRequestId || !openRequestDetail) {
+          return <></>;
+        }
+        return (
+          <Tooltip content={t('查看请求详情')}>
+            <Button
+              theme='solid'
+              type='primary'
+              onClick={(e) => {
+                e.stopPropagation();
+                openRequestDetail(record);
+              }}
+              size='small'
+              style={{ padding: '4px 8px', fontSize: '12px' }}
+            >
+              {t('详情')}
+            </Button>
+          </Tooltip>
+        );
       },
     },
     {

@@ -169,3 +169,37 @@ func DeleteHistoryLogs(c *gin.Context) {
 	})
 	return
 }
+
+// GetLogDetail retrieves detailed request/response information by request_id.
+// Users can only access their own log details; admins can access any.
+func GetLogDetail(c *gin.Context) {
+	requestId := c.Query("request_id")
+	if requestId == "" {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "request_id 参数不能为空",
+		})
+		return
+	}
+
+	detail, err := model.GetLogDetailByRequestId(requestId)
+	if err != nil {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "未找到请求详情",
+		})
+		return
+	}
+
+	// Non-admin users can only view their own log details
+	userId := c.GetInt("id")
+	if !model.IsAdmin(userId) && detail.UserId != userId {
+		c.JSON(http.StatusOK, gin.H{
+			"success": false,
+			"message": "无权访问该请求详情",
+		})
+		return
+	}
+
+	common.ApiSuccess(c, detail)
+}

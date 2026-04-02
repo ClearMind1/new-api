@@ -10,9 +10,8 @@ import (
 	"github.com/QuantumNous/new-api/logger"
 	"github.com/QuantumNous/new-api/types"
 
-	"github.com/gin-gonic/gin"
-
 	"github.com/bytedance/gopkg/util/gopool"
+	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
