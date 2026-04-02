@@ -145,12 +145,6 @@ jobs:
             clearmind1/new-api:latest-amd64 \
             clearmind1/new-api:latest-arm64
 
-      - name: Output manifest digest
-        run: |
-          echo "### Multi-arch Manifest" >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
-          docker buildx imagetools inspect calciumion/new-api:${TAG} >> $GITHUB_STEP_SUMMARY
-          echo '```' >> $GITHUB_STEP_SUMMARY
 
       # ---- GHCR ----
 #      - name: Log in to GHCR
