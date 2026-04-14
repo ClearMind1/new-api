@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"strings"
 
 	"github.com/QuantumNous/new-api/common"
@@ -51,6 +52,22 @@ func (w *responseCaptureWriter) Push(target string, opts *http.PushOptions) erro
 		return pusher.Push(target, opts)
 	}
 	return http.ErrNotSupported
+}
+
+// base64DataURIRegex matches data URIs with base64-encoded content (e.g., data:image/png;base64,...)
+var base64DataURIRegex = regexp.MustCompile(`data:[a-zA-Z0-9.+-]+/[a-zA-Z0-9.+-]+;base64,[A-Za-z0-9+/=]+`)
+
+// stripBase64Content replaces base64 data URIs with a placeholder to reduce storage size.
+func stripBase64Content(body string) string {
+	if !strings.Contains(body, ";base64,") {
+		return body
+	}
+	return base64DataURIRegex.ReplaceAllStringFunc(body, func(match string) string {
+		idx := strings.Index(match, ";base64,")
+		prefix := match[:idx+len(";base64,")]
+		dataLen := len(match) - len(prefix)
+		return fmt.Sprintf("%s[stripped %d chars]", prefix, dataLen)
+	})
 }
 
 // parseSSEStream parses raw SSE stream data into a readable format.
@@ -177,19 +194,22 @@ func truncateEmbeddingResponse(body string) string {
 	return body
 }
 
-func min(a, b int) int {
-	if a < b {
-		return a
+// truncateBody truncates body to maxBytes and appends a truncation notice.
+func truncateBody(body string, maxBytes int) string {
+	if len(body) <= maxBytes {
+		return body
 	}
-	return b
+	return body[:maxBytes] + fmt.Sprintf("\n... [truncated at %d bytes]", maxBytes)
 }
 
 // ResponseCapture captures request and response details in one place to avoid race conditions.
 // Captures: request body, request headers, response body (with SSE stream parsing).
-// Only enabled when LOG_REQUEST_DETAIL=1.
+// Enabled/disabled via LogRequestDetailEnabled option.
+// Configurable via LogDetailCaptureRequestBody, LogDetailCaptureResponseBody,
+// LogDetailCaptureHeaders, and LogDetailMaxBodySizeKB.
 func ResponseCapture() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if common.GetEnvOrDefault("LOG_REQUEST_DETAIL", 1) != 1 {
+		if !common.LogRequestDetailEnabled {
 			c.Next()
 			return
 		}
@@ -200,72 +220,94 @@ func ResponseCapture() gin.HandlerFunc {
 			return
 		}
 
+		maxBodySize := common.LogDetailMaxBodySizeKB * 1024
+
 		// Extract request body BEFORE c.Next() (before BodyStorage is cleaned up)
 		var requestBody string
-		if storage, err := common.GetBodyStorage(c); err == nil {
-			if bodyBytes, err := storage.Bytes(); err == nil {
-				requestBody = string(bodyBytes)
-				storage.Seek(0, 0)
+		if common.LogDetailCaptureRequestBody {
+			if storage, err := common.GetBodyStorage(c); err == nil {
+				if bodyBytes, err := storage.Bytes(); err == nil {
+					requestBody = string(bodyBytes)
+					storage.Seek(0, 0)
+				}
 			}
-		}
-		if len(requestBody) > 1024*1024 {
-			requestBody = requestBody[:1024*1024] + "\n... [truncated]"
+			// Strip base64 data URIs before truncation check
+			requestBody = stripBase64Content(requestBody)
+			requestBody = truncateBody(requestBody, maxBodySize)
 		}
 
 		// Extract request headers (filter sensitive ones)
-		skipHeaders := map[string]bool{
-			"authorization": true,
-			"x-api-key":     true,
-			"cookie":        true,
-		}
-		headers := make(map[string]interface{})
-		for k, v := range c.Request.Header {
-			if skipHeaders[strings.ToLower(k)] {
-				continue
+		var headersStr string
+		if common.LogDetailCaptureHeaders {
+			skipHeaders := map[string]bool{
+				"authorization": true,
+				"x-api-key":     true,
+				"cookie":        true,
 			}
-			headers[k] = strings.Join(v, ", ")
+			headers := make(map[string]interface{})
+			for k, v := range c.Request.Header {
+				if skipHeaders[strings.ToLower(k)] {
+					continue
+				}
+				headers[k] = strings.Join(v, ", ")
+			}
+			headersStr = common.MapToJsonStr(headers)
 		}
-		headersStr := common.MapToJsonStr(headers)
+
 		requestPath := c.Request.URL.Path
 		requestMethod := c.Request.Method
 		modelName := c.GetString("original_model")
 		userId := c.GetInt("id")
 
-		// Wrap response writer
-		captureWriter := &responseCaptureWriter{
-			ResponseWriter: c.Writer,
-			body:           &bytes.Buffer{},
+		// Only wrap response writer if we need to capture the response body
+		needCaptureResponse := common.LogDetailCaptureResponseBody
+		var captureWriter *responseCaptureWriter
+		if needCaptureResponse {
+			captureWriter = &responseCaptureWriter{
+				ResponseWriter: c.Writer,
+				body:           &bytes.Buffer{},
+			}
+			c.Writer = captureWriter
 		}
-		c.Writer = captureWriter
 
 		c.Next()
 
 		// Extract response body AFTER c.Next()
-		responseBody := captureWriter.body.String()
-		if responseBody == "" && requestBody == "" {
+		var responseBody string
+		if needCaptureResponse && captureWriter != nil {
+			responseBody = captureWriter.body.String()
+
+			// Truncate if too large
+			responseBody = truncateBody(responseBody, maxBodySize)
+
+			// Parse SSE stream for streaming responses
+			isStream := strings.Contains(captureWriter.Header().Get("Content-Type"), "text/event-stream") ||
+				strings.Contains(responseBody, "data: ")
+			if isStream && responseBody != "" {
+				parsed := parseSSEStream(responseBody)
+				if parsed != "" {
+					// Truncate again after SSE parsing (parsed result is usually much smaller)
+					responseBody = truncateBody(parsed, maxBodySize)
+				}
+			} else if responseBody != "" {
+				// For non-streaming responses, check if it's an embedding response
+				// and truncate large embedding vectors to save space
+				responseBody = truncateEmbeddingResponse(responseBody)
+				// Apply final truncation after embedding truncation
+				responseBody = truncateBody(responseBody, maxBodySize)
+			}
+		}
+
+		if responseBody == "" && requestBody == "" && headersStr == "" {
 			return
 		}
 
-		// Truncate if too large (1MB limit)
-		if len(responseBody) > 1024*1024 {
-			responseBody = responseBody[:1024*1024] + "\n... [truncated]"
-		}
-
-		// Parse SSE stream for streaming responses
-		var processedResponse string
-		isStream := strings.Contains(captureWriter.Header().Get("Content-Type"), "text/event-stream") ||
-			strings.Contains(responseBody, "data: ")
-		if isStream && responseBody != "" {
-			processedResponse = parseSSEStream(responseBody)
-		} else if responseBody != "" {
-			// For non-streaming responses, check if it's an embedding response
-			// and truncate large embedding vectors to save space
-			processedResponse = truncateEmbeddingResponse(responseBody)
-		}
-
-		statusCode := captureWriter.Status()
-		if statusCode == 0 {
-			statusCode = http.StatusOK
+		var statusCode int
+		if needCaptureResponse && captureWriter != nil {
+			statusCode = captureWriter.Status()
+			if statusCode == 0 {
+				statusCode = http.StatusOK
+			}
 		}
 
 		// Save everything in ONE call to avoid race conditions
@@ -275,16 +317,11 @@ func ResponseCapture() gin.HandlerFunc {
 			RequestPath:    requestPath,
 			RequestMethod:  requestMethod,
 			RequestHeaders: headersStr,
-			ResponseBody: func() string {
-				if processedResponse != "" {
-					return processedResponse
-				}
-				return responseBody
-			}(),
-			StatusCode: statusCode,
-			ModelName:  modelName,
-			UserId:     userId,
-			CreatedAt:  common.GetTimestamp(),
+			ResponseBody:   responseBody,
+			StatusCode:     statusCode,
+			ModelName:      modelName,
+			UserId:         userId,
+			CreatedAt:      common.GetTimestamp(),
 		}
 
 		if err := model.UpsertLogDetail(detail); err != nil {

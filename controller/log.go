@@ -162,6 +162,12 @@ func DeleteHistoryLogs(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
+	// Also delete corresponding log_details records
+	detailCount, detailErr := model.DeleteOldLogDetails(targetTimestamp, 100)
+	if detailErr != nil {
+		common.SysError("failed to delete old log details: " + detailErr.Error())
+	}
+	count += detailCount
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",

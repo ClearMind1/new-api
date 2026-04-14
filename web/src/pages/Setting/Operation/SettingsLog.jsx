@@ -27,6 +27,7 @@ import {
   DatePicker,
   Typography,
   Modal,
+  InputNumber,
 } from '@douyinfe/semi-ui';
 import dayjs from 'dayjs';
 import { useTranslation } from 'react-i18next';
@@ -46,6 +47,12 @@ export default function SettingsLog(props) {
   const [loadingCleanHistoryLog, setLoadingCleanHistoryLog] = useState(false);
   const [inputs, setInputs] = useState({
     LogConsumeEnabled: false,
+    LogRequestDetailEnabled: true,
+    LogDetailCaptureRequestBody: true,
+    LogDetailCaptureResponseBody: true,
+    LogDetailCaptureHeaders: true,
+    LogDetailRetentionDays: 7,
+    LogDetailMaxBodySizeKB: 64,
     historyTimestamp: dayjs().subtract(1, 'month').toDate(),
   });
   const refForm = useRef();
@@ -247,13 +254,126 @@ export default function SettingsLog(props) {
                 </Spin>
               </Col>
             </Row>
+          </Form.Section>
 
-            <Row>
-              <Button size='default' onClick={onSubmit}>
-                {t('保存日志设置')}
-              </Button>
+          <Form.Section text={t('请求详情设置')}>
+            <Row gutter={16}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'LogRequestDetailEnabled'}
+                  label={t('启用请求详情记录')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogRequestDetailEnabled: value,
+                    });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 8 }}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'LogDetailCaptureRequestBody'}
+                  label={t('记录请求体')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogDetailCaptureRequestBody: value,
+                    });
+                  }}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'LogDetailCaptureResponseBody'}
+                  label={t('记录响应体')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogDetailCaptureResponseBody: value,
+                    });
+                  }}
+                />
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.Switch
+                  field={'LogDetailCaptureHeaders'}
+                  label={t('记录请求头')}
+                  size='default'
+                  checkedText='｜'
+                  uncheckedText='〇'
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogDetailCaptureHeaders: value,
+                    });
+                  }}
+                />
+              </Col>
+            </Row>
+            <Row gutter={16} style={{ marginTop: 8 }}>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  field={'LogDetailRetentionDays'}
+                  label={t('详情保留天数')}
+                  min={0}
+                  max={365}
+                  style={{ width: '100%' }}
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogDetailRetentionDays: value,
+                    });
+                  }}
+                />
+                <Text
+                  type='tertiary'
+                  size='small'
+                  style={{ display: 'block', marginTop: 4 }}
+                >
+                  {t('0 表示不自动清理，建议设置7天以上')}
+                </Text>
+              </Col>
+              <Col xs={24} sm={12} md={8} lg={8} xl={8}>
+                <Form.InputNumber
+                  field={'LogDetailMaxBodySizeKB'}
+                  label={t('详情最大大小(KB)')}
+                  min={1}
+                  max={1024}
+                  style={{ width: '100%' }}
+                  onChange={(value) => {
+                    setInputs({
+                      ...inputs,
+                      LogDetailMaxBodySizeKB: value,
+                    });
+                  }}
+                />
+                <Text
+                  type='tertiary'
+                  size='small'
+                  style={{ display: 'block', marginTop: 4 }}
+                >
+                  {t('超过此大小的请求/响应体将被截断，建议64KB')}
+                </Text>
+              </Col>
             </Row>
           </Form.Section>
+
+          <Row>
+            <Button size='default' onClick={onSubmit}>
+              {t('保存日志设置')}
+            </Button>
+          </Row>
         </Form>
       </Spin>
     </>

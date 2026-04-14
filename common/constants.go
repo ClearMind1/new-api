@@ -74,6 +74,14 @@ var MemoryCacheEnabled bool
 
 var LogConsumeEnabled = true
 
+// LogDetail settings (runtime-configurable via options API)
+var LogRequestDetailEnabled = true
+var LogDetailCaptureRequestBody = true
+var LogDetailCaptureResponseBody = true
+var LogDetailCaptureHeaders = true
+var LogDetailRetentionDays = 7
+var LogDetailMaxBodySizeKB = 64
+
 var TLSInsecureSkipVerify bool
 var InsecureTLSConfig = &tls.Config{InsecureSkipVerify: true}
 

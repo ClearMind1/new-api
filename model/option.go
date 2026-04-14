@@ -47,6 +47,12 @@ func InitOptionMap() {
 	common.OptionMap["AutomaticDisableChannelEnabled"] = strconv.FormatBool(common.AutomaticDisableChannelEnabled)
 	common.OptionMap["AutomaticEnableChannelEnabled"] = strconv.FormatBool(common.AutomaticEnableChannelEnabled)
 	common.OptionMap["LogConsumeEnabled"] = strconv.FormatBool(common.LogConsumeEnabled)
+	common.OptionMap["LogRequestDetailEnabled"] = strconv.FormatBool(common.LogRequestDetailEnabled)
+	common.OptionMap["LogDetailCaptureRequestBody"] = strconv.FormatBool(common.LogDetailCaptureRequestBody)
+	common.OptionMap["LogDetailCaptureResponseBody"] = strconv.FormatBool(common.LogDetailCaptureResponseBody)
+	common.OptionMap["LogDetailCaptureHeaders"] = strconv.FormatBool(common.LogDetailCaptureHeaders)
+	common.OptionMap["LogDetailRetentionDays"] = strconv.Itoa(common.LogDetailRetentionDays)
+	common.OptionMap["LogDetailMaxBodySizeKB"] = strconv.Itoa(common.LogDetailMaxBodySizeKB)
 	common.OptionMap["DisplayInCurrencyEnabled"] = strconv.FormatBool(common.DisplayInCurrencyEnabled)
 	common.OptionMap["DisplayTokenStatEnabled"] = strconv.FormatBool(common.DisplayTokenStatEnabled)
 	common.OptionMap["DrawingEnabled"] = strconv.FormatBool(common.DrawingEnabled)
@@ -265,6 +271,14 @@ func updateOptionMap(key string, value string) (err error) {
 			common.AutomaticEnableChannelEnabled = boolValue
 		case "LogConsumeEnabled":
 			common.LogConsumeEnabled = boolValue
+		case "LogRequestDetailEnabled":
+			common.LogRequestDetailEnabled = boolValue
+		case "LogDetailCaptureRequestBody":
+			common.LogDetailCaptureRequestBody = boolValue
+		case "LogDetailCaptureResponseBody":
+			common.LogDetailCaptureResponseBody = boolValue
+		case "LogDetailCaptureHeaders":
+			common.LogDetailCaptureHeaders = boolValue
 		case "DisplayInCurrencyEnabled":
 			// 兼容旧字段：同步到新配置 general_setting.quota_display_type（运行时生效）
 			// true -> USD, false -> TOKENS
@@ -463,6 +477,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.DataExportInterval, _ = strconv.Atoi(value)
 	case "DataExportDefaultTime":
 		common.DataExportDefaultTime = value
+	case "LogDetailRetentionDays":
+		common.LogDetailRetentionDays, _ = strconv.Atoi(value)
+	case "LogDetailMaxBodySizeKB":
+		common.LogDetailMaxBodySizeKB, _ = strconv.Atoi(value)
 	case "ModelRatio":
 		err = ratio_setting.UpdateModelRatioByJSONString(value)
 	case "GroupRatio":
