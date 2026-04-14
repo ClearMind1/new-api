@@ -271,14 +271,19 @@ func updateOptionMap(key string, value string) (err error) {
 			common.AutomaticEnableChannelEnabled = boolValue
 		case "LogConsumeEnabled":
 			common.LogConsumeEnabled = boolValue
+			common.OptionMap["LogConsumeEnabled"] = value
 		case "LogRequestDetailEnabled":
 			common.LogRequestDetailEnabled = boolValue
+			common.OptionMap["LogRequestDetailEnabled"] = value
 		case "LogDetailCaptureRequestBody":
 			common.LogDetailCaptureRequestBody = boolValue
+			common.OptionMap["LogDetailCaptureRequestBody"] = value
 		case "LogDetailCaptureResponseBody":
 			common.LogDetailCaptureResponseBody = boolValue
+			common.OptionMap["LogDetailCaptureResponseBody"] = value
 		case "LogDetailCaptureHeaders":
 			common.LogDetailCaptureHeaders = boolValue
+			common.OptionMap["LogDetailCaptureHeaders"] = value
 		case "DisplayInCurrencyEnabled":
 			// 兼容旧字段：同步到新配置 general_setting.quota_display_type（运行时生效）
 			// true -> USD, false -> TOKENS
@@ -479,8 +484,10 @@ func updateOptionMap(key string, value string) (err error) {
 		common.DataExportDefaultTime = value
 	case "LogDetailRetentionDays":
 		common.LogDetailRetentionDays, _ = strconv.Atoi(value)
+		common.OptionMap["LogDetailRetentionDays"] = value
 	case "LogDetailMaxBodySizeKB":
 		common.LogDetailMaxBodySizeKB, _ = strconv.Atoi(value)
+		common.OptionMap["LogDetailMaxBodySizeKB"] = value
 	case "ModelRatio":
 		err = ratio_setting.UpdateModelRatioByJSONString(value)
 	case "GroupRatio":
