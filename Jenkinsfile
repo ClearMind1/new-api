@@ -5,7 +5,7 @@ pipeline {
         string(
             name: 'IMAGE_TAG',
             defaultValue: '',
-            description: 'Required. Image tag, e.g. v0.10.8-alpha.3 or test-001. Image will be tagged as clearmind1/new-api:<IMAGE_TAG>-amd64.',
+            description: 'Optional. Leave empty to auto-generate as <yyyymmdd>-<short-sha> (matches docker-image-nightly.yml). Otherwise overrides the image tag suffix. Image will be tagged as clearmind1/new-api:<TAG>-amd64.',
             trim: true
         )
     }
@@ -22,13 +22,20 @@ pipeline {
     }
 
     stages {
-        stage('Validate Params') {
+        stage('Resolve Tag') {
             steps {
                 script {
-                    if (!params.IMAGE_TAG?.trim()) {
-                        error 'IMAGE_TAG parameter is required (e.g., v0.10.8-alpha.3)'
+                    def tag = params.IMAGE_TAG?.trim()
+                    if (tag) {
+                        echo "Using provided IMAGE_TAG: ${tag}"
+                    } else {
+                        def date = sh(script: "date +'%Y%m%d'", returnStdout: true).trim()
+                        def sha  = sh(script: 'git rev-parse --short HEAD', returnStdout: true).trim()
+                        tag = "${date}-${sha}"
+                        echo "IMAGE_TAG not provided, auto-generated: ${tag}"
                     }
-                    echo "Building tag: ${params.IMAGE_TAG} for ${env.ARCH}"
+                    env.RESOLVED_TAG = tag
+                    currentBuild.displayName = "#${env.BUILD_NUMBER} ${tag}"
                 }
             }
         }
@@ -36,7 +43,7 @@ pipeline {
         stage('Prepare VERSION') {
             steps {
                 sh '''
-                    echo "${IMAGE_TAG}" > VERSION
+                    echo "${RESOLVED_TAG}" > VERSION
                     cat VERSION
                 '''
             }
@@ -46,7 +53,7 @@ pipeline {
             steps {
                 sh '''
                     docker build \
-                      -t "${IMAGE_NAME}:${IMAGE_TAG}-${ARCH}" \
+                      -t "${IMAGE_NAME}:${RESOLVED_TAG}-${ARCH}" \
                       -t "${IMAGE_NAME}:latest-${ARCH}" \
                       .
                 '''
@@ -56,9 +63,9 @@ pipeline {
         stage('Verify Image') {
             steps {
                 sh '''
-                    docker image inspect "${IMAGE_NAME}:${IMAGE_TAG}-${ARCH}" \
+                    docker image inspect "${IMAGE_NAME}:${RESOLVED_TAG}-${ARCH}" \
                       --format '{{.Id}} {{.Created}} {{.Size}}'
-                    docker images "${IMAGE_NAME}" --filter reference="${IMAGE_NAME}:${IMAGE_TAG}-${ARCH}"
+                    docker images "${IMAGE_NAME}" --filter reference="${IMAGE_NAME}:${RESOLVED_TAG}-${ARCH}"
                 '''
             }
         }
@@ -69,10 +76,10 @@ pipeline {
             sh 'rm -f VERSION || true'
         }
         success {
-            echo "Built ${env.IMAGE_NAME}:${params.IMAGE_TAG}-${env.ARCH}"
+            echo "Built ${env.IMAGE_NAME}:${env.RESOLVED_TAG}-${env.ARCH}"
         }
         failure {
-            echo "Build failed for tag ${params.IMAGE_TAG}"
+            echo "Build failed for tag ${env.RESOLVED_TAG ?: '(unresolved)'}"
         }
     }
 }
