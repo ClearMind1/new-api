@@ -117,7 +117,7 @@ pipeline {
                 }
             }
             steps {
-                sshagent(credentials: ['remote-server-ssh']) {
+                sshagent(credentials: ['remote-server-ssh-hk']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
                             ${REMOTE_USER}@${REMOTE_HOST} \
