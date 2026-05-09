@@ -8,6 +8,11 @@ pipeline {
             description: 'Optional. Leave empty to auto-generate as <yyyymmdd>-<short-sha> (matches docker-image-nightly.yml). Otherwise overrides the image tag suffix. Image will be tagged as clearmind1/new-api:<TAG>-amd64.',
             trim: true
         )
+        booleanParam(
+            name: 'PUSH',
+            defaultValue: true,
+            description: 'When true, push the built image to Docker Hub (clearmind1/new-api) using the dockerhub-credentials credential ID. Uncheck for build-only debugging.'
+        )
     }
 
     environment {
@@ -69,14 +74,49 @@ pipeline {
                 '''
             }
         }
+
+        stage('Login to Docker Hub') {
+            when { expression { return params.PUSH } }
+            steps {
+                withCredentials([usernamePassword(
+                    credentialsId: 'dockerhub-credentials',
+                    usernameVariable: 'DOCKERHUB_USER',
+                    passwordVariable: 'DOCKERHUB_PASS'
+                )]) {
+                    sh '''
+                        set +x
+                        echo "$DOCKERHUB_PASS" | docker login -u "$DOCKERHUB_USER" --password-stdin
+                    '''
+                }
+            }
+        }
+
+        stage('Push Image') {
+            when { expression { return params.PUSH } }
+            steps {
+                sh '''
+                    docker push "${IMAGE_NAME}:latest-${ARCH}"
+                '''
+            }
+        }
     }
 
     post {
         always {
-            sh 'rm -f VERSION || true'
+            sh '''
+                docker logout || true
+                rm -f VERSION || true
+            '''
         }
         success {
-            echo "Built ${env.IMAGE_NAME}:${env.RESOLVED_TAG}-${env.ARCH}"
+            script {
+                echo "Built ${env.IMAGE_NAME}:${env.RESOLVED_TAG}-${env.ARCH}"
+                if (params.PUSH) {
+                    echo "Pushed ${env.IMAGE_NAME}:latest-${env.ARCH}"
+                } else {
+                    echo "PUSH disabled, image kept local only"
+                }
+            }
         }
         failure {
             echo "Build failed for tag ${env.RESOLVED_TAG ?: '(unresolved)'}"
