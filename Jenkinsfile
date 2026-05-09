@@ -95,6 +95,7 @@ pipeline {
             when { expression { return params.PUSH } }
             steps {
                 sh '''
+                    docker push "${IMAGE_NAME}:${RESOLVED_TAG}-${ARCH}"
                     docker push "${IMAGE_NAME}:latest-${ARCH}"
                 '''
             }
