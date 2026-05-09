@@ -13,11 +13,19 @@ pipeline {
             defaultValue: true,
             description: 'When true, push the built image to Docker Hub (clearmind1/new-api) using the dockerhub-credentials credential ID. Uncheck for build-only debugging.'
         )
+        booleanParam(
+            name: 'DEPLOY',
+            defaultValue: true,
+            description: 'When true and PUSH is also true, deploy the new image to the remote server via SSH after push.'
+        )
     }
 
     environment {
-        IMAGE_NAME = 'clearmind1/new-api'
-        ARCH       = 'amd64'
+        IMAGE_NAME     = 'clearmind1/new-api'
+        ARCH           = 'amd64'
+        REMOTE_HOST    = 'your-server-ip'
+        REMOTE_USER    = 'root'
+        REMOTE_DEPLOY  = '/opt/new-api/deploy.sh'
     }
 
     options {
@@ -98,6 +106,24 @@ pipeline {
                     docker push "${IMAGE_NAME}:${RESOLVED_TAG}-${ARCH}"
                     docker push "${IMAGE_NAME}:latest-${ARCH}"
                 '''
+            }
+        }
+
+        stage('Deploy') {
+            when {
+                allOf {
+                    expression { return params.PUSH }
+                    expression { return params.DEPLOY }
+                }
+            }
+            steps {
+                sshagent(credentials: ['remote-server-ssh']) {
+                    sh '''
+                        ssh -o StrictHostKeyChecking=no \
+                            ${REMOTE_USER}@${REMOTE_HOST} \
+                            "${REMOTE_DEPLOY} ${RESOLVED_TAG}"
+                    '''
+                }
             }
         }
     }
