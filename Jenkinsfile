@@ -8,6 +8,11 @@ pipeline {
             description: 'Optional. Leave empty to auto-generate as <yyyymmdd>-<short-sha> (matches docker-image-nightly.yml). Otherwise overrides the image tag suffix. Image will be tagged as clearmind1/new-api:<TAG>-amd64.',
             trim: true
         )
+        string(
+            name: 'REMOTE_HOST',
+            defaultValue: '',
+            description: 'Remote server IP or hostname for deployment. Leave empty to skip deploy.'
+        )
         booleanParam(
             name: 'PUSH',
             defaultValue: true,
@@ -23,7 +28,6 @@ pipeline {
     environment {
         IMAGE_NAME     = 'clearmind1/new-api'
         ARCH           = 'amd64'
-        REMOTE_HOST    = 'your-server-ip'
         REMOTE_USER    = 'root'
         REMOTE_DEPLOY  = '/opt/new-api/deploy.sh'
     }
@@ -114,9 +118,13 @@ pipeline {
                 allOf {
                     expression { return params.PUSH }
                     expression { return params.DEPLOY }
+                    expression { return params.REMOTE_HOST?.trim() }
                 }
             }
             steps {
+                script {
+                    env.REMOTE_HOST = params.REMOTE_HOST.trim()
+                }
                 sshagent(credentials: ['remote-server-ssh-hk']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
