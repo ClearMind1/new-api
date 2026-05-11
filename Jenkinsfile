@@ -8,16 +8,6 @@ pipeline {
             description: 'Optional. Leave empty to auto-generate as <yyyymmdd>-<short-sha> (matches docker-image-nightly.yml). Otherwise overrides the image tag suffix. Image will be tagged as clearmind1/new-api:<TAG>-amd64.',
             trim: true
         )
-        string(
-            name: 'REMOTE_HOST',
-            defaultValue: '',
-            description: 'Remote server IP or hostname for deployment. Leave empty to skip deploy.'
-        )
-        string(
-            name: 'REMOTE_PORT',
-            defaultValue: '22',
-            description: 'SSH port of the remote server. Defaults to 22.'
-        )
         booleanParam(
             name: 'PUSH',
             defaultValue: true,
@@ -26,7 +16,7 @@ pipeline {
         booleanParam(
             name: 'DEPLOY',
             defaultValue: true,
-            description: 'When true and PUSH is also true, deploy the new image to the remote server via SSH after push.'
+            description: 'When true and PUSH is also true, deploy the new image to the remote server via SSH after push. Host/port are read from Jenkins credentials deploy-remote-host-hk and deploy-remote-port-hk.'
         )
     }
 
@@ -123,21 +113,21 @@ pipeline {
                 allOf {
                     expression { return params.PUSH }
                     expression { return params.DEPLOY }
-                    expression { return params.REMOTE_HOST?.trim() }
                 }
             }
             steps {
-                script {
-                    env.REMOTE_HOST = params.REMOTE_HOST.trim()
-                    env.REMOTE_PORT = params.REMOTE_PORT?.trim() ?: '22'
-                }
-                sshagent(credentials: ['remote-server-ssh-hk']) {
-                    sh '''
-                        ssh -o StrictHostKeyChecking=no \
-                            -p ${REMOTE_PORT} \
-                            ${REMOTE_USER}@${REMOTE_HOST} \
-                            "${REMOTE_DEPLOY} ${RESOLVED_TAG}"
-                    '''
+                withCredentials([
+                    string(credentialsId: 'deploy-remote-host-hk', variable: 'REMOTE_HOST'),
+                    string(credentialsId: 'deploy-remote-port-hk', variable: 'REMOTE_PORT')
+                ]) {
+                    sshagent(credentials: ['remote-server-ssh-hk']) {
+                        sh '''
+                            ssh -o StrictHostKeyChecking=no \
+                                -p ${REMOTE_PORT} \
+                                ${REMOTE_USER}@${REMOTE_HOST} \
+                                "${REMOTE_DEPLOY} ${RESOLVED_TAG}"
+                        '''
+                    }
                 }
             }
         }
