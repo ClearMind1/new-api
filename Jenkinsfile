@@ -13,6 +13,11 @@ pipeline {
             defaultValue: '',
             description: 'Remote server IP or hostname for deployment. Leave empty to skip deploy.'
         )
+        string(
+            name: 'REMOTE_PORT',
+            defaultValue: '22',
+            description: 'SSH port of the remote server. Defaults to 22.'
+        )
         booleanParam(
             name: 'PUSH',
             defaultValue: true,
@@ -124,10 +129,12 @@ pipeline {
             steps {
                 script {
                     env.REMOTE_HOST = params.REMOTE_HOST.trim()
+                    env.REMOTE_PORT = params.REMOTE_PORT?.trim() ?: '22'
                 }
                 sshagent(credentials: ['remote-server-ssh-hk']) {
                     sh '''
                         ssh -o StrictHostKeyChecking=no \
+                            -p ${REMOTE_PORT} \
                             ${REMOTE_USER}@${REMOTE_HOST} \
                             "${REMOTE_DEPLOY} ${RESOLVED_TAG}"
                     '''
