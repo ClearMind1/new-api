@@ -5,18 +5,18 @@ pipeline {
         string(
             name: 'IMAGE_TAG',
             defaultValue: '',
-            description: 'Optional. Leave empty to auto-generate as <yyyymmdd>-<short-sha> (matches docker-image-nightly.yml). Otherwise overrides the image tag suffix. Image will be tagged as clearmind1/new-api:<TAG>-amd64.',
+            description: '可选。留空将自动生成 <yyyymmdd>-<short-sha> 格式的标签（与 docker-image-nightly.yml 保持一致）。填写则覆盖默认标签后缀。镜像最终标签为 clearmind1/new-api:<TAG>-amd64。',
             trim: true
         )
         booleanParam(
             name: 'PUSH',
             defaultValue: true,
-            description: 'When true, push the built image to Docker Hub (clearmind1/new-api) using the dockerhub-credentials credential ID. Uncheck for build-only debugging.'
+            description: '勾选时，使用 dockerhub-credentials 凭据将构建好的镜像推送到 Docker Hub (clearmind1/new-api)。仅本地构建调试时取消勾选。'
         )
         booleanParam(
             name: 'DEPLOY',
             defaultValue: true,
-            description: 'When true and PUSH is also true, deploy the new image to the remote server via SSH after push. Host/port are read from Jenkins credentials deploy-remote-host-hk and deploy-remote-port-hk.'
+            description: '勾选时（且 PUSH 也勾选），推送完成后通过 SSH 将新镜像部署到远程服务器。主机/端口从 Jenkins 凭据 deploy-remote-host-hk 与 deploy-remote-port-hk 读取。'
         )
     }
 
