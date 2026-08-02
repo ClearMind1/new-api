@@ -56,7 +56,7 @@ func runLogDetailCleanupOnce() {
 	}
 
 	cutoff := time.Now().AddDate(0, 0, -retentionDays).Unix()
-	count, err := model.DeleteOldLogDetails(cutoff, logDetailCleanupBatchSize)
+	count, err := model.DeleteOldLogDetails(context.Background(), cutoff, logDetailCleanupBatchSize)
 	if err != nil {
 		logger.LogWarn(context.Background(), fmt.Sprintf("log detail cleanup task failed: %v", err))
 		return
