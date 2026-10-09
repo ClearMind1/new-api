@@ -6,6 +6,7 @@ import (
 
 	"github.com/QuantumNous/new-api/common"
 	"github.com/QuantumNous/new-api/model"
+	"github.com/QuantumNous/new-api/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -176,9 +177,13 @@ func GetLogDetail(c *gin.Context) {
 		return
 	}
 
-	// Non-admin users can only view their own log details
+	// Cross-user details require an admin and, for scoped tokens, log:read.
 	userId := c.GetInt("id")
-	if !model.IsAdmin(userId) && detail.UserId != userId {
+	canViewOtherUsers := model.IsAdmin(userId)
+	if c.GetBool("use_access_token") && !c.GetBool("access_token_legacy") {
+		canViewOtherUsers = canViewOtherUsers && service.AccessTokenScopeGranted(c.GetStringSlice("access_token_scopes"), "log:read")
+	}
+	if detail.UserId != userId && !canViewOtherUsers {
 		c.JSON(http.StatusOK, gin.H{
 			"success": false,
 			"message": "无权访问该请求详情",
